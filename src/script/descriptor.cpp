@@ -93,14 +93,24 @@ namespace {
  */
 uint64_t PolyMod(uint64_t c, int val)
 {
-    uint8_t c0 = c >> 35;
+    static constexpr std::array<uint64_t, 32> generator = []{
+        constexpr std::array<uint64_t, 5> g = {
+            0xf5dee51989ULL,
+            0xa9fdca3312ULL,
+            0x1bab10e32dULL,
+            0x3706b1677aULL,
+            0x644d626ffdULL
+        };
+        std::array<uint64_t, 32> table{};
+        for (int i = 0; i < 32; ++i)
+            for (int bit = 0; bit < 5; ++bit)
+                table[i] ^= (i & (1 << bit)) ? g[bit] : 0;
+        return table;
+    }();
+
+    const uint8_t c0 = c >> 35;
     c = ((c & 0x7ffffffff) << 5) ^ val;
-    if (c0 & 1) c ^= 0xf5dee51989;
-    if (c0 & 2) c ^= 0xa9fdca3312;
-    if (c0 & 4) c ^= 0x1bab10e32d;
-    if (c0 & 8) c ^= 0x3706b1677a;
-    if (c0 & 16) c ^= 0x644d626ffd;
-    return c;
+    return c ^ generator[c0];
 }
 
 std::string DescriptorChecksum(const std::span<const char>& span)
