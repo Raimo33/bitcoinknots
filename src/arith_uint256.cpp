@@ -8,14 +8,15 @@
 #include <uint256.h>
 #include <crypto/common.h>
 
+#include <algorithm>
+#include <bit>
 #include <cassert>
 
 template <unsigned int BITS>
 base_uint<BITS>& base_uint<BITS>::operator<<=(unsigned int shift)
 {
     base_uint<BITS> a(*this);
-    for (int i = 0; i < WIDTH; i++)
-        pn[i] = 0;
+    pn.fill(0);
     int k = shift / 32;
     shift = shift % 32;
     for (int i = 0; i < WIDTH; i++) {
@@ -31,8 +32,7 @@ template <unsigned int BITS>
 base_uint<BITS>& base_uint<BITS>::operator>>=(unsigned int shift)
 {
     base_uint<BITS> a(*this);
-    for (int i = 0; i < WIDTH; i++)
-        pn[i] = 0;
+    pn.fill(0);
     int k = shift / 32;
     shift = shift % 32;
     for (int i = 0; i < WIDTH; i++) {
@@ -48,9 +48,9 @@ template <unsigned int BITS>
 base_uint<BITS>& base_uint<BITS>::operator*=(uint32_t b32)
 {
     uint64_t carry = 0;
-    for (int i = 0; i < WIDTH; i++) {
-        uint64_t n = carry + (uint64_t)b32 * pn[i];
-        pn[i] = n & 0xffffffff;
+    for (auto &word : pn) {
+        uint64_t n = carry + static_cast<uint64_t>(b32) * word;
+        word = static_cast<uint32_t>(n);
         carry = n >> 32;
     }
     return *this;
@@ -62,9 +62,10 @@ base_uint<BITS>& base_uint<BITS>::operator*=(const base_uint& b)
     base_uint<BITS> a;
     for (int j = 0; j < WIDTH; j++) {
         uint64_t carry = 0;
+        const uint64_t multiplier = static_cast<uint64_t>(pn[j]);
         for (int i = 0; i + j < WIDTH; i++) {
-            uint64_t n = carry + a.pn[i + j] + (uint64_t)pn[j] * b.pn[i];
-            a.pn[i + j] = n & 0xffffffff;
+            uint64_t n = carry + a.pn[i + j] + multiplier * b.pn[i];
+            a.pn[i + j] = static_cast<uint32_t>(n);
             carry = n >> 32;
         }
     }
@@ -101,11 +102,15 @@ base_uint<BITS>& base_uint<BITS>::operator/=(const base_uint& b)
 template <unsigned int BITS>
 int base_uint<BITS>::CompareTo(const base_uint<BITS>& b) const
 {
-    for (int i = WIDTH - 1; i >= 0; i--) {
-        if (pn[i] < b.pn[i])
-            return -1;
-        if (pn[i] > b.pn[i])
-            return 1;
+    auto it_a = pn.rbegin();
+    auto it_b = b.pn.rbegin();
+    for (; it_a != pn.rend(); ++it_a, ++it_b) {
+        const uint32_t a_word = *it_a;
+        const uint32_t b_word = *it_b;
+        const int cmp = (a_word > b_word) - (a_word < b_word);
+        if (cmp != 0) {
+            return cmp;
+        }
     }
     return 0;
 }
@@ -113,15 +118,9 @@ int base_uint<BITS>::CompareTo(const base_uint<BITS>& b) const
 template <unsigned int BITS>
 bool base_uint<BITS>::EqualTo(uint64_t b) const
 {
-    for (int i = WIDTH - 1; i >= 2; i--) {
-        if (pn[i])
-            return false;
-    }
-    if (pn[1] != (b >> 32))
-        return false;
-    if (pn[0] != (b & 0xfffffffful))
-        return false;
-    return true;
+    if (pn[0] != static_cast<uint32_t>(b)) return false;
+    if (pn[1] != static_cast<uint32_t>(b >> 32)) return false;
+    return std::all_of(pn.begin() + 2, pn.end(), [](uint32_t word) { return word == 0; });
 }
 
 template <unsigned int BITS>
@@ -129,8 +128,8 @@ double base_uint<BITS>::getdouble() const
 {
     double ret = 0.0;
     double fact = 1.0;
-    for (int i = 0; i < WIDTH; i++) {
-        ret += fact * pn[i];
+    for (const auto &word : pn) {
+        ret += fact * word;
         fact *= 4294967296.0;
     }
     return ret;
@@ -155,13 +154,10 @@ std::string base_uint<BITS>::ToString() const
 template <unsigned int BITS>
 unsigned int base_uint<BITS>::bits() const
 {
-    for (int pos = WIDTH - 1; pos >= 0; pos--) {
-        if (pn[pos]) {
-            for (int nbits = 31; nbits > 0; nbits--) {
-                if (pn[pos] & 1U << nbits)
-                    return 32 * pos + nbits + 1;
-            }
-            return 32 * pos + 1;
+    for (int i = WIDTH - 1; i >= 0; i--) {
+        const uint32_t word = pn[i];
+        if (word) {
+            return 32 * i + std::bit_width(word);
         }
     }
     return 0;
