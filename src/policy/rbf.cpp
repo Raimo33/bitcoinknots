@@ -95,7 +95,7 @@ std::optional<std::string> HasNoNewUnconfirmed(const CTransaction& tx,
         }
     }
 
-    for (unsigned int j = 0; j < tx.vin.size(); j++) {
+    for (const CTxIn& vin : tx.vin) {
         // Rule #2: We don't want to accept replacements that require low feerate junk to be
         // mined first.  Ideally we'd keep track of the ancestor feerates and make the decision
         // based on that, but for now requiring all new inputs to be confirmed works.
@@ -103,12 +103,12 @@ std::optional<std::string> HasNoNewUnconfirmed(const CTransaction& tx,
         // Note that if you relax this to make RBF a little more useful, this may break the
         // CalculateMempoolAncestors RBF relaxation which subtracts the conflict count/size from the
         // descendant limit.
-        if (!parents_of_conflicts.count(tx.vin[j].prevout.hash)) {
+        if (!parents_of_conflicts.count(vin.prevout.hash)) {
             // Rather than check the UTXO set - potentially expensive - it's cheaper to just check
             // if the new input refers to a tx that's in the mempool.
-            if (pool.exists(tx.vin[j].prevout.hash)) {
-                return strprintf("replacement %s adds unconfirmed input, idx %d",
-                                 tx.GetHash().ToString(), j);
+            if (pool.exists(vin.prevout.hash)) {
+                return strprintf("replacement %s adds unconfirmed input",
+                                 tx.GetHash().ToString());
             }
         }
     }
