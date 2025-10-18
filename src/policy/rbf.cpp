@@ -16,7 +16,7 @@
 #include <util/moneystr.h>
 #include <util/rbf.h>
 
-#include <limits>
+#include <algorithm>
 #include <vector>
 
 #include <compare>
@@ -88,10 +88,10 @@ std::optional<std::string> HasNoNewUnconfirmed(const CTransaction& tx,
                                                const CTxMemPool::setEntries& iters_conflicting)
 {
     AssertLockHeld(pool.cs);
-    std::set<Txid> parents_of_conflicts;
+    std::vector<Txid> parents_of_conflicts;
     for (const auto& mi : iters_conflicting) {
         for (const CTxIn& txin : mi->GetTx().vin) {
-            parents_of_conflicts.insert(txin.prevout.hash);
+            parents_of_conflicts.push_back(txin.prevout.hash);
         }
     }
 
@@ -103,7 +103,7 @@ std::optional<std::string> HasNoNewUnconfirmed(const CTransaction& tx,
         // Note that if you relax this to make RBF a little more useful, this may break the
         // CalculateMempoolAncestors RBF relaxation which subtracts the conflict count/size from the
         // descendant limit.
-        if (!parents_of_conflicts.contains(vin.prevout.hash)) {
+        if (std::find(parents_of_conflicts.begin(), parents_of_conflicts.end(), vin.prevout.hash) == parents_of_conflicts.end()) {
             // Rather than check the UTXO set - potentially expensive - it's cheaper to just check
             // if the new input refers to a tx that's in the mempool.
             if (pool.exists(vin.prevout.hash)) {
