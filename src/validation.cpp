@@ -67,7 +67,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
-#include <deque>
+#include <queue>
 #include <numeric>
 #include <optional>
 #include <ranges>
@@ -5021,7 +5021,7 @@ bool Chainstate::LoadGenesisBlock()
 void ChainstateManager::LoadExternalBlockFile(
     AutoFile& file_in,
     FlatFilePos* dbp,
-    std::multimap<uint256, FlatFilePos>* blocks_with_unknown_parent)
+    std::unordered_multimap<uint256, FlatFilePos, BlockHasher>* blocks_with_unknown_parent)
 {
     // Either both should be specified (-reindex), or neither (-loadblock).
     assert(!dbp == !blocks_with_unknown_parent);
@@ -5150,14 +5150,14 @@ void ChainstateManager::LoadExternalBlockFile(
                 if (!blocks_with_unknown_parent) continue;
 
                 // Recursively process earlier encountered successors of this block
-                std::deque<uint256> queue;
-                queue.push_back(hash);
+                std::queue<uint256> queue;
+                queue.push(hash);
                 while (!queue.empty()) {
-                    uint256 head = queue.front();
-                    queue.pop_front();
+                    const uint256& head = queue.front();
+                    queue.pop();
                     auto range = blocks_with_unknown_parent->equal_range(head);
                     while (range.first != range.second) {
-                        std::multimap<uint256, FlatFilePos>::iterator it = range.first;
+                        std::unordered_multimap<uint256, FlatFilePos, BlockHasher>::iterator it = range.first;
                         std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
                         if (m_blockman.ReadBlock(*pblockrecursive, it->second, {})) {
                             const auto& block_hash{pblockrecursive->GetHash()};
@@ -5166,7 +5166,7 @@ void ChainstateManager::LoadExternalBlockFile(
                             BlockValidationState dummy;
                             if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true)) {
                                 nLoaded++;
-                                queue.push_back(block_hash);
+                                queue.push(block_hash);
                             }
                         }
                         range.first++;

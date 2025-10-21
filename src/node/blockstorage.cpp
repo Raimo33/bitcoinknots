@@ -31,6 +31,7 @@
 #include <util/batchpriority.h>
 #include <util/check.h>
 #include <util/fs.h>
+#include <util/hasher.h>
 #include <util/obfuscation.h>
 #include <util/signalinterrupt.h>
 #include <util/strencodings.h>
@@ -1223,7 +1224,7 @@ void ImportBlocks(ChainstateManager& chainman, std::span<const fs::path> import_
         int nFile = 0;
         // Map of disk positions for blocks with unknown parent (only used for reindex);
         // parent hash -> child disk position, multiple children can have the same parent.
-        std::multimap<uint256, FlatFilePos> blocks_with_unknown_parent;
+        std::unordered_multimap<uint256, FlatFilePos, BlockHasher> blocks_with_unknown_parent;
         while (true) {
             FlatFilePos pos(nFile, 0);
             if (!fs::exists(chainman.m_blockman.GetBlockPosFilename(pos))) {
