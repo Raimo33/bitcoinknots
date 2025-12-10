@@ -29,13 +29,31 @@ static constexpr std::array<std::string_view, 4> SAFE_CHARS{
     }
 };
 
+namespace {
+
+using AllowedTable = std::array<std::array<bool, 256>, std::size(SAFE_CHARS)>;
+
+constexpr AllowedTable SAFE_CHARS_TABLE = [] {
+    AllowedTable table{};
+    for (size_t rule = 0; rule < table.size(); ++rule) {
+        for (unsigned char c : SAFE_CHARS[rule]) {
+            table[rule][c] = true;
+        }
+    }
+    return table;
+}();
+
+} // namespace
+
 std::string SanitizeString(std::string_view str, int rule)
 {
+    assert(rule >= 0 && static_cast<size_t>(rule) < SAFE_CHARS_TABLE.size());
+
+    const auto& allowed = SAFE_CHARS_TABLE[rule];
     std::string result;
-    for (char c : str) {
-        if (SAFE_CHARS[rule].find(c) != std::string::npos) {
-            result.push_back(c);
-        }
+    result.reserve(str.size());
+    for (unsigned char c : str) {
+        if (allowed[c]) result.push_back(static_cast<char>(c));
     }
     return result;
 }
