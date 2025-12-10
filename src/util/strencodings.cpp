@@ -15,16 +15,18 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
-static const std::string CHARS_ALPHA_NUM = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+#define CHARS_ALPHA_NUM "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-static const std::string SAFE_CHARS[] =
-{
-    CHARS_ALPHA_NUM + " .,;-_/:?@()", // SAFE_CHARS_DEFAULT
-    CHARS_ALPHA_NUM + " .,;-_?@", // SAFE_CHARS_UA_COMMENT
-    CHARS_ALPHA_NUM + ".-_", // SAFE_CHARS_FILENAME
-    CHARS_ALPHA_NUM + "!*'();:@&=+$,/?#[]-_.~%", // SAFE_CHARS_URI
+static constexpr std::array<std::string_view, 4> SAFE_CHARS{
+    {
+        CHARS_ALPHA_NUM " .,;-_/:?@()", // SAFE_CHARS_DEFAULT
+        CHARS_ALPHA_NUM " .,;-_?@", // SAFE_CHARS_UA_COMMENT
+        CHARS_ALPHA_NUM ".-_", // SAFE_CHARS_FILENAME
+        CHARS_ALPHA_NUM "!*'();:@&=+$,/?#[]-_.~%", // SAFE_CHARS_URI
+    }
 };
 
 std::string SanitizeString(std::string_view str, int rule)
