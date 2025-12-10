@@ -45,6 +45,7 @@ add_executable(bench_bitcoin
   random.cpp
   readwriteblock.cpp
   rollingbloom.cpp
+  sanitize_string.cpp
   rpc_blockchain.cpp
   rpc_mempool.cpp
   sign_transaction.cpp
